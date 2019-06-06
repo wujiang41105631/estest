@@ -7,7 +7,7 @@
     <appenders>
         <Console name="Console" target="SYSTEM_OUT">
             <!-- ThresholdFilter相当于拦截器.info以上的命令不会被拦截. -->
-            <ThresholdFilter level="info" onMatch="ACCEPT" onMismatch="DENY"/>
+            <ThresholdFilter level="debug" onMatch="ACCEPT" onMismatch="DENY"/>
             <PatternLayout pattern="%d{HH:mm:ss.SSS} %-5level %class{36} %L %M - %msg%xEx%n"/>
         </Console>
         <File name="Error" fileName="${LOG_HOME}/error.log">

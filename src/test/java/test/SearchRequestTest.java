@@ -1,23 +1,20 @@
 package test;
 
-import org.elasticsearch.action.search.*;
+import org.elasticsearch.action.search.MultiSearchRequest;
+import org.elasticsearch.action.search.MultiSearchResponse;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
-import org.elasticsearch.search.SearchHits;
-import org.elasticsearch.search.aggregations.AggregationBuilders;
-import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
-import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder;
-import org.elasticsearch.search.profile.ProfileShardResult;
 import org.elasticsearch.search.sort.FieldSortBuilder;
 import org.elasticsearch.search.sort.SortOrder;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -29,6 +26,7 @@ public class SearchRequestTest extends ElasticSearchTest {
 
     /**
      * queryBuilder https://www.cnblogs.com/sunfie/p/9030196.html
+     *
      * @throws IOException
      */
     @Test
@@ -86,7 +84,7 @@ public class SearchRequestTest extends ElasticSearchTest {
 //        for (ShardSearchFailure shardFailure : shardFailures) {
 //            System.out.println(shardFailure.reason());
 //        }
-            //分析结果
+        //分析结果
 //        Map<String, ProfileShardResult> profileResults = response.getProfileResults();
 //        System.out.println(profileResults.size());
 //        profileResults.forEach((key, value) -> {
@@ -112,7 +110,7 @@ public class SearchRequestTest extends ElasticSearchTest {
         for (MultiSearchResponse.Item item : items) {
             SearchHit[] hits = item.getResponse().getHits().getHits();
             for (SearchHit hit : hits) {
-                System.out.println(hit.getSourceAsString()+ "--"+ hit.getIndex());
+                System.out.println(hit.getSourceAsString() + "--" + hit.getIndex());
             }
 
         }

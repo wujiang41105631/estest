@@ -3,7 +3,9 @@ package test;
 import org.apache.http.HttpHost;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,7 +25,7 @@ public class ElasticSearchTest {
 
     @BeforeClass
     public static void before() {
-        logger.info("this is before");
+        logger.info("test start ....");
         client = new RestHighLevelClient(
                 RestClient.builder(
                         new HttpHost("10.255.72.213", 9200, "http"),
@@ -35,10 +37,15 @@ public class ElasticSearchTest {
     @AfterClass
     public static void after() {
         try {
-            logger.info("this is end");
+            logger.info("test finished...");
             client.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    @After
+    public void beforTest(){
+        logger.info("--------------------------------");
     }
 }
