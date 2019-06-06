@@ -1,12 +1,16 @@
 package test;
 
-import org.apache.http.HttpHost;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.DocWriteRequest;
+import org.elasticsearch.action.bulk.BulkItemResponse;
+import org.elasticsearch.action.bulk.BulkRequest;
+import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
+import org.elasticsearch.action.get.MultiGetRequest;
+import org.elasticsearch.action.get.MultiGetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.WriteRequest;
@@ -14,15 +18,13 @@ import org.elasticsearch.action.support.replication.ReplicationResponse;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.action.update.UpdateResponse;
 import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.client.RestClient;
-import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.index.query.TermQueryBuilder;
+import org.elasticsearch.index.reindex.UpdateByQueryRequest;
 import org.elasticsearch.rest.RestStatus;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.elasticsearch.search.fetch.subphase.FetchSourceContext;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Date;
@@ -34,20 +36,8 @@ import java.util.Map;
  * @date: 2019/5/17
  * @description
  */
-public class IndexRequetTest {
-    private static Logger logger = LoggerFactory.getLogger(IndexRequetTest.class);
+public class RequetTest extends ElasticSearchTest {
 
-    private static RestHighLevelClient client = null;
-
-    @BeforeClass
-    public static void before() {
-        logger.info("this is before");
-        client = new RestHighLevelClient(
-                RestClient.builder(
-                        new HttpHost("10.255.72.213", 9200, "http"),
-                        new HttpHost("10.255.72.214", 9200, "http"),
-                        new HttpHost("10.255.72.215", 9200, "http")));
-    }
 
     /**
      * CreateIndex
@@ -101,7 +91,7 @@ public class IndexRequetTest {
      *
      * @throws IOException
      */
-//    @Test
+    @Test
     public void testGetRequest() {
         GetRequest getRequest = new GetRequest("asset_info", "1");
         getRequest.storedFields("userName"); //显示的指定需要返回的字段，默认会返回_source中所有字段。此属性需要将index mapping中对应的字段的store属性设置为true
@@ -158,7 +148,7 @@ public class IndexRequetTest {
                 .doc(jsonMap);
         try {
             UpdateResponse update = client.update(request, RequestOptions.DEFAULT);
-            if(update.status() == RestStatus.OK){
+            if (update.status() == RestStatus.OK) {
                 System.out.println("-----------------");
             }
         } catch (IOException e) {
@@ -166,13 +156,115 @@ public class IndexRequetTest {
         }
     }
 
-    @AfterClass
-    public static void after() {
-        try {
-            logger.info("this is end");
-            client.close();
-        } catch (IOException e) {
-            e.printStackTrace();
+
+    //    @Test
+    public void testBulkRequest() throws InterruptedException, IOException {
+        Map<String, Object> jsonMap = new HashMap<>();
+        jsonMap.put("userName", "wang si");
+        jsonMap.put("id", "30");
+        jsonMap.put("postDate", new Date());
+        jsonMap.put("message", "out");
+
+        Map<String, Object> jsonMap2 = new HashMap<>();
+        jsonMap2.putAll(jsonMap);
+        jsonMap2.put("id", "1");
+
+        Map<String, Object> jsonMap3 = new HashMap<>();
+        jsonMap3.putAll(jsonMap);
+        jsonMap3.put("id", "21");
+
+        BulkRequest request = new BulkRequest();
+        request.add(new IndexRequest("asset_info").id("30")
+                .source(jsonMap).opType(DocWriteRequest.OpType.CREATE));
+        request.add(new IndexRequest("asset_info").id("1")
+                .source(jsonMap2).opType(DocWriteRequest.OpType.CREATE));
+        request.add(new IndexRequest("asset_info").id("21")
+                .source(jsonMap3).opType(DocWriteRequest.OpType.CREATE));
+
+        BulkResponse bulk = client.bulk(request, RequestOptions.DEFAULT);
+        if (bulk.hasFailures()) {
+            BulkItemResponse[] items = bulk.getItems();
+            for (BulkItemResponse item : items) {
+                System.out.println(item.getFailureMessage());
+            }
         }
+//        BulkProcessor.Listener listener = new BulkProcessor.Listener() {
+//            @Override
+//            public void beforeBulk(long executionId, BulkRequest request) {
+//
+//            }
+//
+//            @Override
+//            public void afterBulk(long executionId, BulkRequest request,
+//                                  BulkResponse response) {
+//
+//            }
+//
+//            @Override
+//            public void afterBulk(long executionId, BulkRequest request,
+//                                  Throwable failure) {
+//
+//            }
+//        };
+//
+//        BulkProcessor bulkProcessor = BulkProcessor.builder(
+//                (r, bulkListener) ->
+//                        client.bulkAsync(request, RequestOptions.DEFAULT, bulkListener),
+//                listener).build();
+//
+//        BulkProcessor.Builder builder = BulkProcessor.builder(
+//                (r, bulkListener) ->
+//                        client.bulkAsync(request, RequestOptions.DEFAULT, bulkListener),
+//                listener);
+//        builder.setBulkActions(500);
+//        builder.setBulkSize(new ByteSizeValue(1L, ByteSizeUnit.MB));
+//        builder.setConcurrentRequests(0);
+//        builder.setFlushInterval(TimeValue.timeValueSeconds(10L));
+//        builder.setBackoffPolicy(BackoffPolicy
+//                .constantBackoff(TimeValue.timeValueSeconds(1L), 3));
+//
+//        boolean terminated = bulkProcessor.awaitClose(30L, TimeUnit.SECONDS);
+//        bulkProcessor.close();
     }
+
+    /**
+     * https://www.elastic.co/guide/en/elasticsearch/client/java-rest/7.0/java-rest-high-document-multi-get.html
+     *
+     * @throws IOException
+     */
+//    @Test
+    public void testMutiGetRequest() throws IOException {
+        MultiGetRequest request = new MultiGetRequest();
+        request.add(new MultiGetRequest.Item(
+                "asset_info",
+                "1"));
+        request.add(new MultiGetRequest.Item("asset_info", "2"));
+
+        String[] includes = Strings.EMPTY_ARRAY;
+        String[] excludes = new String[]{"foo", "*r"};
+        FetchSourceContext fetchSourceContext =
+                new FetchSourceContext(true, includes, excludes);
+        request.add(new MultiGetRequest.Item("index", "example_id")
+                .fetchSourceContext(fetchSourceContext));
+
+        MultiGetResponse response = client.mget(request, RequestOptions.DEFAULT);
+
+        System.out.println(response.isFragment());
+        response.forEach((x) -> System.out.println(x.getResponse().getSourceAsString()));
+    }
+
+    /**
+     * 有问题,set 字段哪搞
+     * @throws IOException
+     */
+    @Test
+    public void testUpdateByQueryRequest() throws IOException {
+        UpdateByQueryRequest request =
+                new UpdateByQueryRequest("asset_info");
+        request.setConflicts("proceed");
+        request.setQuery(new TermQueryBuilder("userName", "kimchy"));
+        request.setRefresh(true);
+        client.updateByQuery(request, RequestOptions.DEFAULT);
+    }
+
 }
