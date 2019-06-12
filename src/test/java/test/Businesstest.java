@@ -10,6 +10,8 @@ import org.elasticsearch.index.query.RangeQueryBuilder;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
+import org.elasticsearch.search.aggregations.Aggregation;
+import org.elasticsearch.search.aggregations.AggregationBuilder;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.elasticsearch.search.aggregations.BucketOrder;
 import org.elasticsearch.search.aggregations.bucket.terms.Terms;
@@ -268,6 +270,35 @@ public class Businesstest extends ElasticSearchTest {
         if (response.status() == RestStatus.OK) {
             ValueCount realCount = response.getAggregations().get("realCount");
             logger.info("testGetAssetInfoByQueryConditionAndCountDistinct,count = {}", realCount.getValue());
+        }
+    }
+
+    /**
+     * select product_type_code,channel_code,count(1) from temp_asset_info group by product_type_code asc, channel_code desc
+     */
+    @Test
+    public void testGetAssetInfoGroup1() throws IOException {
+        SearchRequest searchRequest = new SearchRequest(INDEX_NAME);
+
+        TermsAggregationBuilder productTypeCode = AggregationBuilders.terms("productTypeCode").field("product_type_code");
+        productTypeCode.order(BucketOrder.key(true));
+        TermsAggregationBuilder channelCode = AggregationBuilders.terms("channelCode").field("channel_code");
+        channelCode.order(BucketOrder.count(false));
+        productTypeCode.subAggregation(channelCode);
+
+        SearchSourceBuilder ssb = new SearchSourceBuilder();
+        ssb.aggregation(productTypeCode);
+        searchRequest.source(ssb);
+
+        SearchResponse response = client.search(searchRequest, RequestOptions.DEFAULT);
+        if (response.status() == RestStatus.OK) {
+           Terms ptcTerms =  response.getAggregations().get("productTypeCode");
+           ptcTerms.getBuckets().forEach((ptcTerm)->{
+               Terms ccTerms = ptcTerm.getAggregations().get("channelCode");
+               ccTerms.getBuckets().forEach((ccTerm)->{
+                   logger.info("productTypeCode = {}.channelCode={},count={}.",ptcTerm.getKey(),ccTerm.getKey(),ccTerm.getDocCount());
+               });
+           });
         }
     }
 }
