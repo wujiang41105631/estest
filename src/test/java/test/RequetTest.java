@@ -44,7 +44,8 @@ public class RequetTest extends ElasticSearchTest {
      */
 //    @Test
     public void testIndexRequest() {
-        // TODO: 2019/5/20  此处需要确定一个查询结果index.mapping下的dynamic字段为false时，预设的字段查出来的结果在es-head和 cerebro中不一致，userName是预设的，message不是预设的
+        // TODO: 2019/5/20  此处需要确定一个查询结果index.mapping下的dynamic字段为false时，
+        // 预设的字段查出来的结果在es-head和 cerebro中不一致，userName是预设的，message不是预设的
         int id = 19;
         Map<String, Object> jsonMap = new HashMap<>();
         jsonMap.put("userName", "wang si");

@@ -45,6 +45,7 @@ public class Businesstest extends ElasticSearchTest {
      * 6. 根据渠道号分组计算个数 后排序
      * 7. select count(Distinct card_no) from temp_asset_info where create_time> xxx and create_time < yyyy and product_type_code=GXD
      * 8. select count(*) from temp_asset_info where create_time> xxx and create_time < yyyy and product_type_code=GXD
+     * 9. select * from temp_asset_info where income_no in ('','');
      */
 
 
@@ -85,7 +86,6 @@ public class Businesstest extends ElasticSearchTest {
      *
      * @throws IOException
      */
-    @Test
     public void testGetAssetInfosByNation() throws IOException {
         // 1.先建立 Request
         SearchRequest searchRequest = new SearchRequest(INDEX_NAME);
@@ -113,7 +113,6 @@ public class Businesstest extends ElasticSearchTest {
      *
      * @throws IOException
      */
-    @Test
     public void testGetAssetInfosByRangeDate() throws IOException {
         // 1.先建立 Request
         SearchRequest searchRequest = new SearchRequest(INDEX_NAME);
@@ -142,7 +141,6 @@ public class Businesstest extends ElasticSearchTest {
     /**
      * 根据时间段统计该段时间内身份证号进件数量，对进件数量排序
      */
-    @Test
     public void testGetAssetInfoByMutiCondition1() throws IOException {
         SearchRequest searchRequest = new SearchRequest(INDEX_NAME);
 
@@ -172,7 +170,6 @@ public class Businesstest extends ElasticSearchTest {
     /**
      * 根据姓名时间段及产品类型查询
      */
-    @Test
     public void testGetAssetInfoByMutiCondition2() throws IOException {
         SearchRequest searchRequest = new SearchRequest(INDEX_NAME);
 
@@ -202,7 +199,6 @@ public class Businesstest extends ElasticSearchTest {
     /**
      * 根据渠道号和产品类型分组计算个数 后排序
      */
-    @Test
     public void testGetAssetInfoByChannelCodeProductTypeCode() throws IOException {
         SearchRequest searchRequest = new SearchRequest(INDEX_NAME);
 
@@ -232,7 +228,6 @@ public class Businesstest extends ElasticSearchTest {
     /**
      * 类似于select count(Distinct card_no) from temp_asset_info where create_time> xxx and create_time < yyyy and product_type_code=GXD
      */
-    @Test
     public void testGetAssetInfoCount1() throws IOException {
         SearchRequest searchRequest = new SearchRequest(INDEX_NAME);
         SearchSourceBuilder ssb = new SearchSourceBuilder();
@@ -240,6 +235,7 @@ public class Businesstest extends ElasticSearchTest {
         BoolQueryBuilder boolQueryBuilder = QueryBuilders.boolQuery();
         boolQueryBuilder.must(QueryBuilders.rangeQuery("create_time").from("2019-01-10 00:00:00").to("2019-01-15 00:00:00"));
         boolQueryBuilder.filter(QueryBuilders.termQuery("product_type_code", "GXD"));
+        // AggregationBuilders.cardinality 基于distinct的
         ssb.query(boolQueryBuilder).aggregation(AggregationBuilders.cardinality("realCount").field("card_no"));
         ssb.size(0);
         searchRequest.source(ssb);
@@ -254,7 +250,6 @@ public class Businesstest extends ElasticSearchTest {
     /**
      * 类似于select count(*) from temp_asset_info where create_time> xxx and create_time < yyyy and product_type_code=GXD
      */
-    @Test
     public void testGetAssetInfoCount2() throws IOException {
         SearchRequest searchRequest = new SearchRequest(INDEX_NAME);
         SearchSourceBuilder ssb = new SearchSourceBuilder();
@@ -276,7 +271,6 @@ public class Businesstest extends ElasticSearchTest {
     /**
      * select product_type_code,channel_code,count(1) from temp_asset_info group by product_type_code asc, channel_code desc
      */
-    @Test
     public void testGetAssetInfoGroup1() throws IOException {
         SearchRequest searchRequest = new SearchRequest(INDEX_NAME);
 
@@ -299,6 +293,29 @@ public class Businesstest extends ElasticSearchTest {
                    logger.info("productTypeCode = {}.channelCode={},count={}.",ptcTerm.getKey(),ccTerm.getKey(),ccTerm.getDocCount());
                });
            });
+        }
+    }
+
+    /**
+     * 9. select * from temp_asset_info where income_no in ('XHD_UC19010280000014553','XHD_UC19010480000015059');
+     */
+    @Test
+    public void testGetAssetInfoByInCondition() throws IOException {
+        SearchRequest searchRequest = new SearchRequest(INDEX_NAME);
+        SearchSourceBuilder ssb = new SearchSourceBuilder();
+        BoolQueryBuilder boolQueryBuilder = QueryBuilders.boolQuery();
+        boolQueryBuilder.should(QueryBuilders.matchQuery("income_no","XHD_UC19010280000014553"));
+        boolQueryBuilder.should(QueryBuilders.matchQuery("income_no","XHD_UC19010480000015059"));
+        boolQueryBuilder.must(QueryBuilders.matchQuery("income_no","XHD_UC19010480000015059"));
+        ssb.query(boolQueryBuilder);
+        searchRequest.source(ssb);
+        SearchResponse response = client.search(searchRequest, RequestOptions.DEFAULT);
+        if (response.status() == RestStatus.OK) {
+            SearchHits hits = response.getHits();
+            assertNotNull(hits);
+            SearchHit[] hitsEntities = hits.getHits();// 如果未找到,length=0
+            logger.info("testGetAssetInfoByInCondition find data's size = {}.", hitsEntities.length);
+            Stream.of(hitsEntities).forEach(x -> System.out.println("testGetAssetInfoByInCondition :" + x.getSourceAsString()));
         }
     }
 }
