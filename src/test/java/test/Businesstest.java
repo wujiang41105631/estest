@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.util.stream.Stream;
 
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * 基于asset_info表做的测试
@@ -286,27 +287,26 @@ public class Businesstest extends ElasticSearchTest {
 
         SearchResponse response = client.search(searchRequest, RequestOptions.DEFAULT);
         if (response.status() == RestStatus.OK) {
-           Terms ptcTerms =  response.getAggregations().get("productTypeCode");
-           ptcTerms.getBuckets().forEach((ptcTerm)->{
-               Terms ccTerms = ptcTerm.getAggregations().get("channelCode");
-               ccTerms.getBuckets().forEach((ccTerm)->{
-                   logger.info("productTypeCode = {}.channelCode={},count={}.",ptcTerm.getKey(),ccTerm.getKey(),ccTerm.getDocCount());
-               });
-           });
+            Terms ptcTerms = response.getAggregations().get("productTypeCode");
+            ptcTerms.getBuckets().forEach((ptcTerm) -> {
+                Terms ccTerms = ptcTerm.getAggregations().get("channelCode");
+                ccTerms.getBuckets().forEach((ccTerm) -> {
+                    logger.info("productTypeCode = {}.channelCode={},count={}.", ptcTerm.getKey(), ccTerm.getKey(), ccTerm.getDocCount());
+                });
+            });
         }
     }
 
     /**
      * 9. select * from temp_asset_info where income_no in ('XHD_UC19010280000014553','XHD_UC19010480000015059');
      */
-    @Test
     public void testGetAssetInfoByInCondition() throws IOException {
         SearchRequest searchRequest = new SearchRequest(INDEX_NAME);
         SearchSourceBuilder ssb = new SearchSourceBuilder();
         BoolQueryBuilder boolQueryBuilder = QueryBuilders.boolQuery();
-        boolQueryBuilder.should(QueryBuilders.matchQuery("income_no","XHD_UC19010280000014553"));
-        boolQueryBuilder.should(QueryBuilders.matchQuery("income_no","XHD_UC19010480000015059"));
-        boolQueryBuilder.must(QueryBuilders.matchQuery("income_no","XHD_UC19010480000015059"));
+        boolQueryBuilder.should(QueryBuilders.matchQuery("income_no", "XHD_UC19010280000014553"));
+        boolQueryBuilder.should(QueryBuilders.matchQuery("income_no", "XHD_UC19010480000015059"));
+        boolQueryBuilder.must(QueryBuilders.matchQuery("income_no", "XHD_UC19010480000015059"));
         ssb.query(boolQueryBuilder);
         searchRequest.source(ssb);
         SearchResponse response = client.search(searchRequest, RequestOptions.DEFAULT);
@@ -314,6 +314,32 @@ public class Businesstest extends ElasticSearchTest {
             SearchHits hits = response.getHits();
             assertNotNull(hits);
             SearchHit[] hitsEntities = hits.getHits();// 如果未找到,length=0
+            logger.info("testGetAssetInfoByInCondition find data's size = {}.", hitsEntities.length);
+            Stream.of(hitsEntities).forEach(x -> System.out.println("testGetAssetInfoByInCondition :" + x.getSourceAsString()));
+        }
+    }
+
+    /**
+     * @throws IOException
+     */
+    @Test
+    public void test() throws IOException {
+        SearchRequest searchRequest = new SearchRequest(INDEX_NAME);
+        SearchSourceBuilder ssb = new SearchSourceBuilder();
+        BoolQueryBuilder boolQueryBuilder = QueryBuilders.boolQuery();
+        // 时间排序
+        boolQueryBuilder.must(QueryBuilders.rangeQuery("create_time").from("2019-01-01 00:00:00").to("2019-07-15 00:00:00"));
+        boolQueryBuilder.must(QueryBuilders.boolQuery().should(QueryBuilders.matchQuery("income_no", "XHD_UC19010480000015059"))
+                .should(QueryBuilders.matchQuery("income_no", "XHD_UC19010280000014553")));
+
+        ssb.query(boolQueryBuilder);
+        searchRequest.source(ssb);
+        SearchResponse response = client.search(searchRequest, RequestOptions.DEFAULT);
+        if (response.status() == RestStatus.OK) {
+            SearchHits hits = response.getHits();
+            assertNotNull(hits);
+            SearchHit[] hitsEntities = hits.getHits();// 如果未找到,length=0
+            assertTrue(hitsEntities.length != 0);
             logger.info("testGetAssetInfoByInCondition find data's size = {}.", hitsEntities.length);
             Stream.of(hitsEntities).forEach(x -> System.out.println("testGetAssetInfoByInCondition :" + x.getSourceAsString()));
         }
